@@ -1,26 +1,27 @@
 module Api
   module V1
     class WorkflowsController < ApplicationController
-      before_action :set_workflow, only: [:show, :update, :destroy]
-      
+      before_action :set_workflow, only: [:show, :update, :destroy, :parse]
+
       def index
         workflows = Workflow.all.order(created_at: :desc)
         render json: workflows.map { |w| { id: w.id, name: w.name } }
       end
-      
+
       def create
         workflow = Workflow.new(workflow_params)
+
         if workflow.save
-          render json: { id: workflow.id, name: workflow.name }, status: :created
+          render json: workflow, status: :created
         else
           render json: { errors: workflow.errors.full_messages }, status: :unprocessable_entity
         end
       end
-      
+
       def show
         render json: @workflow
       end
-      
+
       def update
         if @workflow.update(workflow_params)
           render json: @workflow
@@ -29,23 +30,31 @@ module Api
         end
       end
 
-      def set_workflow
-        @workflow = Workflow.find(params[:id])
-      end
-      
       def destroy
         @workflow.destroy
         head :no_content
       end
-      
+
+      def parse
+        result = Workflows::Parser.new(@workflow).call
+
+        if result[:success]
+          render json: result
+        else
+          render json: result, status: :unprocessable_entity
+        end
+      end
+
       private
-      
+
       def set_workflow
         @workflow = Workflow.find(params[:id])
       end
-      
+
       def workflow_params
-        params.require(:workflow).permit(:name, :status, :trigger, json_data: {})
+        permitted = params.require(:workflow).permit(:name, :status, :trigger)
+        permitted[:json_data] = params[:workflow][:json_data] if params[:workflow][:json_data]
+        permitted
       end
     end
   end
