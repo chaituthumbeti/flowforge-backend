@@ -4,6 +4,7 @@ Rails.application.routes.draw do
       resources :workflows, only: [:index, :create, :show, :update, :destroy] do
         member do
           get :parse
+          post :run
         end
       end
 
@@ -11,4 +12,4 @@ Rails.application.routes.draw do
       post "events", to: "events#create"
     end
   end
-end
+end 

@@ -1,7 +1,7 @@
 module Api
   module V1
     class WorkflowsController < ApplicationController
-      before_action :set_workflow, only: [:show, :update, :destroy, :parse]
+      before_action :set_workflow, only: [:show, :update, :destroy, :parse, :run]
 
       def index
         workflows = Workflow.all.order(created_at: :desc)
@@ -45,6 +45,23 @@ module Api
         end
       end
 
+      def run
+        result = Workflows::Executor.new(@workflow).call
+        if result[:success]
+          render json: {
+            success: true,
+            trace: result[:trace],
+            execution_log_id: result[:execution_log].id
+          }
+        else
+          render json: {
+            success: false,
+            errors: result[:errors],
+            trace: result[:trace]
+          }, status: :unprocessable_entity
+        end
+      end
+      
       private
 
       def set_workflow
