@@ -46,11 +46,13 @@ module Api
       end
 
       def run
-        result = Workflows::Executor.new(@workflow).call
+        input_payload = request.request_parameters
+        result = Workflows::Executor.new(@workflow, input_payload).call
         if result[:success]
           render json: {
             success: true,
             trace: result[:trace],
+            condition_passed: result[:condition_passed],
             execution_log_id: result[:execution_log].id
           }
         else
