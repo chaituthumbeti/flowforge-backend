@@ -16,6 +16,7 @@ module Workflows
           errors: @parser_result[:errors],
           trace: @trace,
           condition_passed: false,
+          action_result: nil,
           execution_log: nil
         }
       end
@@ -42,12 +43,21 @@ module Workflows
         })
       end
 
-      executed_action = nil
+      action_result = nil
+      executed_action_name = nil
 
       if condition_passed
-        @trace << step("actions_found", actions)
         executed_action = actions.first
-        @trace << step("action_executed", executed_action)
+        executed_action_name = executed_action ? executed_action[:label] : nil
+
+        @trace << step("actions_found", actions)
+
+        if executed_action
+          action_result = execute_action(executed_action)
+          @trace << step("action_executed", action_result)
+        else
+          @trace << step("execution_stopped", "No action node found")
+        end
       else
         @trace << step("execution_stopped", "Condition failed")
       end
@@ -55,9 +65,13 @@ module Workflows
       execution_log = ExecutionLog.create!(
         workflow_id: @workflow.id,
         event_type: "workflow_run",
-        event_payload: @input_payload,
+        event_payload: {
+          input: @input_payload,
+          trace: @trace,
+          action_result: action_result
+        },
         condition_passed: condition_passed,
-        action_executed: executed_action ? executed_action[:label] : nil
+        action_executed: executed_action_name
       )
 
       {
@@ -65,6 +79,7 @@ module Workflows
         errors: [],
         trace: @trace,
         condition_passed: condition_passed,
+        action_result: action_result,
         execution_log: execution_log
       }
     rescue StandardError => e
@@ -73,6 +88,7 @@ module Workflows
         errors: [e.message],
         trace: @trace,
         condition_passed: false,
+        action_result: nil,
         execution_log: nil
       }
     end
@@ -111,9 +127,40 @@ module Workflows
       when "<="
         actual_value <= expected_value
       when "=="
-        actual_value =s= expected_value
+        actual_value == expected_value
       else
         false
+      end
+    end
+
+    def execute_action(action_node)
+      label = action_node[:label].to_s.strip
+
+      case label
+      when "Send Discount"
+        {
+          action: label,
+          status: "executed",
+          message: "Discount action simulated successfully"
+        }
+      when "Send Welcome Email"
+        {
+          action: label,
+          status: "executed",
+          message: "Welcome email action simulated successfully"
+        }
+      when "Notify Team"
+        {
+          action: label,
+          status: "executed",
+          message: "Team notification simulated successfully"
+        }
+      else
+        {
+          action: label,
+          status: "executed",
+          message: "Generic action simulated successfully"
+        }
       end
     end
   end

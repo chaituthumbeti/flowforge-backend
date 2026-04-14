@@ -53,6 +53,7 @@ module Api
             success: true,
             trace: result[:trace],
             condition_passed: result[:condition_passed],
+            action_result: result[:action_result],
             execution_log_id: result[:execution_log].id
           }
         else
