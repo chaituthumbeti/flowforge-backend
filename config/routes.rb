@@ -8,7 +8,7 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :execution_logs, only: [:index]
+      resources :execution_logs, only: [:index, :show]
       post "events", to: "events#create"
     end
   end
