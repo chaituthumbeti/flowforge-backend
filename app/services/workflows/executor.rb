@@ -112,7 +112,8 @@ module Workflows
       operator = match[2]
       expected_value = match[3].to_f
 
-      actual_value = payload[field] || payload[field.to_sym]
+      data = payload["payload"] || payload[:payload] || payload
+      actual_value = data[field] || data[field.to_sym]
       return false if actual_value.nil?
 
       actual_value = actual_value.to_f
@@ -131,6 +132,58 @@ module Workflows
       else
         false
       end
+    end
+
+    def evaluate_condition(expression, payload)
+      # Rails.logger.debug "=== EVALUATE CONDITION START ==="
+      # Rails.logger.debug "Expression: #{expression.inspect}"
+      # Rails.logger.debug "Payload: #{payload.inspect}"
+
+      return false if expression.nil? || expression.strip.empty?
+
+      match = expression.strip.match(/\A([a-zA-Z_]\w*)\s*(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)\z/)
+      # Rails.logger.debug "Regex match: #{match.inspect}"
+      return false unless match
+
+      field = match[1]
+      operator = match[2]
+      expected_value = match[3].to_f
+
+      # Rails.logger.debug "Field: #{field}"
+      # Rails.logger.debug "Operator: #{operator}"
+      # Rails.logger.debug "Expected value: #{expected_value}"
+
+      data = payload["payload"] || payload[:payload] || payload
+      # Rails.logger.debug "Data used for evaluation: #{data.inspect}"
+
+      actual_value = data[field] || data[field.to_sym]
+      # Rails.logger.debug "Actual raw value: #{actual_value.inspect}"
+
+      return false if actual_value.nil?
+
+      actual_value = actual_value.to_f
+      # Rails.logger.debug "Actual numeric value: #{actual_value}"
+
+      result =
+        case operator
+        when ">"
+          actual_value > expected_value
+        when "<"
+          actual_value < expected_value
+        when ">="
+          actual_value >= expected_value
+        when "<="
+          actual_value <= expected_value
+        when "=="
+          actual_value == expected_value
+        else
+          false
+        end
+
+      # Rails.logger.debug "Condition result: #{result}"
+      # Rails.logger.debug "=== EVALUATE CONDITION END ==="
+
+      result
     end
 
     def execute_action(action_node)

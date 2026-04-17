@@ -72,9 +72,9 @@ module Api
       end
 
       def workflow_params
-        permitted = params.require(:workflow).permit(:name, :status, :trigger)
-        permitted[:json_data] = params[:workflow][:json_data] if params[:workflow][:json_data]
-        permitted
+        workflow = params.require(:workflow).permit(:name, :status, :trigger, json_data: {})
+        workflow[:json_data] = workflow[:json_data].to_h if workflow[:json_data].respond_to?(:to_h)
+        workflow
       end
     end
   end

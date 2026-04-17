@@ -9,64 +9,34 @@ class WorkflowExecutionService
     results = []
 
     workflows.find_each do |workflow|
-      passed = evaluate_condition(workflow.condition, @payload)
-      
-      action_result = passed ? execute_action(workflow.action) : "Skipped - condition failed"
+      execution = Workflows::Executor.new(workflow, @payload).call
 
-      log = ExecutionLog.create!(
-        workflow: workflow,
-        event_type: @event_type,
-        event_payload: @payload,
-        condition_passed: passed,
-        action_executed: action_result
-      )
+      Rails.logger.debug "SERVICE RESULT for workflow #{workflow.id} (#{workflow.name}): #{execution.inspect}"
 
       results << {
-        id: log.id,
+        id: execution[:execution_log]&.id,
+        workflow_id: workflow.id,
         workflow_name: workflow.name,
-        condition_passed: passed,
-        action_executed: action_result
+        condition_passed: execution[:condition_passed] == true,
+        action_executed: format_action_result(execution[:action_result], execution[:condition_passed]),
+        trace: execution[:trace],
+        errors: execution[:errors]
       }
     end
 
+    # Rails.logger.debug "FINAL SERVICE RESULTS: #{results.inspect}"
     results
   end
 
   private
 
-  def evaluate_condition(condition, payload)
-    return false unless condition.is_a?(Hash)
+  def format_action_result(action_result, condition_passed)
+    return "Skipped - condition failed" unless condition_passed
 
-    field = condition['field']
-    operator = condition['operator']
-    value = condition['value']
-
-    return false unless payload[field] && operator && value
-
-    payload_value = payload[field]
-
-    case operator
-    when '>'
-      payload_value.to_f > value.to_f
-    when '<'
-      payload_value.to_f < value.to_f
-    when '==', '='
-      payload_value.to_s == value.to_s
+    if action_result.is_a?(Hash)
+      action_result[:message] || action_result["message"] || action_result[:action] || action_result["action"] || "Action executed"
     else
-      false
-    end
-  end
-
-  def execute_action(action)
-    return 'No action' unless action&.dig('type')
-
-    case action['type']
-    when 'send_email'
-      "✅ Email sent: #{action['template']}"
-    when 'send_discount'
-      "✅ Discount code: SAVE20%"
-    else
-      "✅ Action '#{action['type']}' executed"
+      action_result || "Action executed"
     end
   end
 end
